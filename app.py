@@ -29,7 +29,16 @@ st.caption("Trend Pullback + VCP Filter")
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
-    universe = st.selectbox("Universe", ["nifty50"])
+    
+    universe = st.selectbox(
+        "Universe", 
+        ["nifty50", "nifty250", "nifty500"],
+        format_func=lambda x: x.upper()
+    )
+    
+    if universe in ["nifty250", "nifty500"]:
+        st.warning("⚠️ Bade universe (250/500 stocks) scan karne me 10-15 minute lag sakte hain. Kripya wait karein aur app ko band na karein.")
+        
     st.markdown("---")
     st.markdown("""
     **Strategy Rules:**
@@ -46,14 +55,15 @@ with st.sidebar:
 if st.button("🔍 Run Scanner", type="primary"):
     progress_bar = st.progress(0)
     status = st.empty()
+    source_placeholder = st.empty()
 
-    def update_progress(pct, sym):
+    def update_progress(pct, sym, total):
         progress_bar.progress(min(pct, 1.0))
-        status.text(f"Scanning: {sym}")
+        status.text(f"Scanning ({int(pct * total)}/{total}): {sym}")
 
     try:
-        with st.spinner("Scanning stocks... (Isme 2-3 minute lag sakte hain)"):
-            results, error = run_scan(universe, update_progress)
+        with st.spinner("Scanning stocks... Kripya sabr karein"):
+            results, error, source_info = run_scan(universe, update_progress)
 
         progress_bar.empty()
         status.empty()
@@ -61,7 +71,7 @@ if st.button("🔍 Run Scanner", type="primary"):
         if error:
             st.warning(error)
         elif results:
-            st.success(f"✅ {len(results)} stocks mile!")
+            st.success(f"✅ {len(results)} stocks mile! (Source: {source_info})")
             df = pd.DataFrame(results)
             df = df.sort_values("Vol_Ratio", ascending=False).reset_index(drop=True)
             st.dataframe(df, use_container_width=True, hide_index=True)
@@ -69,7 +79,7 @@ if st.button("🔍 Run Scanner", type="primary"):
             csv = df.to_csv(index=False).encode("utf-8")
             st.download_button("📥 Download CSV", csv, "swing_scan_results.csv", "text/csv")
         else:
-            st.info("Koi stock nahi mila. Filters aaj strict hain, baad me try karein.")
+            st.info(f"Koi stock nahi mila (Source: {source_info}). Filters aaj strict hain, baad me try karein.")
             
     except Exception as e:
         progress_bar.empty()
@@ -78,4 +88,4 @@ if st.button("🔍 Run Scanner", type="primary"):
         st.info("Kripya thodi der baad dobara try karein. Agar baar-baar error aaye toh Manage App -> Logs check karein.")
 
 st.markdown("---")
-st.caption("⚠️ Educational tool only. Not financial advice. Data via yfinance.")
+st.caption("⚠️ Educational tool only. Not financial advice. Data via yfinance & NSE.")
