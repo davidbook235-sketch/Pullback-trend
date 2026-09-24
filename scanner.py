@@ -22,10 +22,9 @@ NIFTY_FALLBACK = [
     "HDFCLIFE.NS", "LTIM.NS", "TECHM.NS", "SHRIRAMFIN.NS", "BPCL.NS"
 ]
 
-# ---- NSE se dynamically symbols fetch karna (Nifty 250 / 500 ke liye) ----
-@st.cache_data(ttl=86400) # 24 ghante tak cache rahega, baar baar download nahi karega
+# ---- NSE se dynamically symbols fetch karna ----
+@st.cache_data(ttl=86400) 
 def fetch_nse_symbols(index_name):
-    # NSE ki official website se CSV download karne ki koshish
     urls = {
         "nifty250": "https://archives.nseindia.com/content/indices/ind_nifty500list.csv",
         "nifty500": "https://archives.nseindia.com/content/indices/ind_nifty500list.csv"
@@ -43,11 +42,9 @@ def fetch_nse_symbols(index_name):
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             df = pd.read_csv(StringIO(response.text))
-            # NSE CSV me 'Symbol' column hota hai
             symbols = df["Symbol"].dropna().astype(str).str.strip() + ".NS"
             symbols = symbols.tolist()
             
-            # Nifty 250 ke liye sirf top 250 le lo, Nifty 500 ke liye saare 500
             if index_name == "nifty250":
                 return symbols[:250]
             return symbols
@@ -57,7 +54,7 @@ def fetch_nse_symbols(index_name):
         print(f"NSE fetch error: {e}")
         return []
 
-# ---- Cached Data Download (Streamlit Cloud par rate limit se bachne ke liye) ----
+# ---- Cached Data Download ----
 @st.cache_data(ttl=3600)
 def get_stock_data(symbol):
     try:
@@ -84,7 +81,6 @@ def load_universe(choice="nifty50"):
     if len(symbols) > 50:
         return symbols, f"{choice.upper()} ({len(symbols)} stocks from NSE)"
     else:
-        # Agar NSE se fetch fail ho jaye toh fallback
         return NIFTY_FALLBACK, "Nifty 50 (NSE fetch failed, using fallback)"
 
 # ---- Indicator Calculation ----
@@ -205,13 +201,12 @@ def scan_stock(symbol):
 # ---- Run Scan ----
 def run_scan(universe_choice="nifty50", progress_cb=None):
     if not is_market_ok():
-        return [], "Market filter failed: Nifty 50 is below 200 DMA. Naye trades avoid karein."
+        # YAHAN FIX KIYA GAYA HAI: Ab ye 3 values return kar raha hai (pehle 2 kar raha tha)
+        return [], "Market filter failed: Nifty 50 is below 200 DMA. Naye trades avoid karein.", "Market Filter Check"
 
     symbols, source_info = load_universe(universe_choice)
     results = []
     
-    # Rate limit se bachne ke liye delay adjust karein
-    # Bade universe ke liye thoda zyada delay taaki Yahoo block na kare
     delay = 0.5 if len(symbols) <= 50 else 0.3 
     
     for i, sym in enumerate(symbols):
