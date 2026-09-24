@@ -24,13 +24,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("📈 Swing Trade Scanner")
-st.caption("Trend Pullback + VCP Filter | Nifty 500")
+st.caption("Trend Pullback + VCP Filter")
 
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
-    universe = st.selectbox("Universe", ["nifty50", "nifty200", "nifty500"])
-    max_stocks = st.slider("Max Stocks to Scan", 20, 500, 100, 10)
+    universe = st.selectbox("Universe", ["nifty50"])
     st.markdown("---")
     st.markdown("""
     **Strategy Rules:**
@@ -43,7 +42,7 @@ with st.sidebar:
     - Breakout > prev high + Vol 1.5x
     """)
 
-# Main
+# Main Area
 if st.button("🔍 Run Scanner", type="primary"):
     progress_bar = st.progress(0)
     status = st.empty()
@@ -52,24 +51,31 @@ if st.button("🔍 Run Scanner", type="primary"):
         progress_bar.progress(min(pct, 1.0))
         status.text(f"Scanning: {sym}")
 
-    with st.spinner("Scanning stocks..."):
-        results, error = run_scan(universe, max_stocks, update_progress)
+    try:
+        with st.spinner("Scanning stocks... (Isme 2-3 minute lag sakte hain)"):
+            results, error = run_scan(universe, update_progress)
 
-    progress_bar.empty()
-    status.empty()
+        progress_bar.empty()
+        status.empty()
 
-    if error:
-        st.error(error)
-    elif results:
-        st.success(f"✅ {len(results)} stocks mile!")
-        df = pd.DataFrame(results)
-        df = df.sort_values("Vol_Ratio", ascending=False).reset_index(drop=True)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        if error:
+            st.warning(error)
+        elif results:
+            st.success(f"✅ {len(results)} stocks mile!")
+            df = pd.DataFrame(results)
+            df = df.sort_values("Vol_Ratio", ascending=False).reset_index(drop=True)
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Download CSV", csv, "swing_scan_results.csv", "text/csv")
-    else:
-        st.warning("Koi stock nahi mila. Filters dheele karein ya baad me try karein.")
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Download CSV", csv, "swing_scan_results.csv", "text/csv")
+        else:
+            st.info("Koi stock nahi mila. Filters aaj strict hain, baad me try karein.")
+            
+    except Exception as e:
+        progress_bar.empty()
+        status.empty()
+        st.error(f"App me error aya: {str(e)}")
+        st.info("Kripya thodi der baad dobara try karein. Agar baar-baar error aaye toh Manage App -> Logs check karein.")
 
 st.markdown("---")
 st.caption("⚠️ Educational tool only. Not financial advice. Data via yfinance.")
